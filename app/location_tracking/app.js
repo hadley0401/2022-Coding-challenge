@@ -17,7 +17,7 @@ const app = new PIXI.Application({
   backgroundColor: 0x000000,
 });
 
-document.getElementById('app').appendChild(app.view);
+document.getElementById("app").appendChild(app.view);
 
 function drawMap() {
   const graphics = new PIXI.Graphics();
@@ -91,14 +91,13 @@ function drawAssignLines(incidents, officers) {
 
   incidents.forEach((incident) => {
     const officer = officers.find((o) => o.id === incident.officerId);
-    graphics.moveTo(
-      incident.loc.x * UNIT_WIDTH,
-      incident.loc.y * UNIT_HEIGHT
-    );
-    graphics.lineTo(
-      officer.loc.x,
-      officer.loc.y
-    );
+    if (officer) {
+      graphics.moveTo(officer.loc.x * UNIT_WIDTH, officer.loc.y * UNIT_HEIGHT);
+      graphics.lineTo(
+        incident.loc.x * UNIT_WIDTH,
+        incident.loc.y * UNIT_HEIGHT
+      );
+    }
   });
 
   app.stage.addChild(graphics);
@@ -125,6 +124,8 @@ function start() {
   setInterval(loop, 5000);
 }
 
+let incidents, officers;
+
 async function loop() {
   try {
     const resp = await loadData();
@@ -133,7 +134,13 @@ async function loop() {
 
     drawMap();
 
-    const { incidents, officers } = resp.data;
+    incidents = resp.data.incidents;
+    officers = resp.data.officers;
+
+    fakeMove();
+
+    // const res = await loadIncidentOccurred();
+    // await handleIncidentOccurred(res.data);
 
     drawAssignLines(incidents, officers);
     drawOfficers(officers);
@@ -143,10 +150,54 @@ async function loop() {
   }
 }
 
+function randomLocation() {
+  return {
+    x: Math.floor(Math.random() * 30) + 5,
+    y: Math.floor(Math.random() * 30) + 5,
+  };
+}
+
+async function fakeMove() {
+  const fake = officers.map((o) => {
+    return { ...o, loc: randomLocation() };
+  });
+  officers = fake;
+  console.log(fake);
+}
+
+// const EventType = {
+//   INCIDENT_OCCURRED: "IncidentOccurred",
+//   INCIDENT_RESOLVED: "IncidentResolved",
+//   OFFICER_GOES_ONLINE: "OfficierGoesOnline",
+//   OFFICER_LOCATION_UPDATED: "OfficerLocationUpdated",
+//   OFFICER_GOES_OFFLINE: "OfficierGoesOffline",
+// };
+
+// async function handleIncidentOccurred(incidentOccurred) {
+//   const incident = {
+//     id: incidentOccurred.incidentId,
+//     codeName: incidentOccurred.codeName,
+//     loc: { ...incidentOccurred.loc },
+//     officerId: null,
+//   };
+//   incidents.push(incident);
+// }
+
+// const sampleIncidentOccurred = {
+//   type: EventType.INCIDENT_OCCURRED,
+//   incidentId: 4,
+//   codeName: "IC4",
+//   loc: {
+//     x: 30,
+//     y: 30,
+//   },
+// };
+
 const sampleIncidents = [
   { id: 1, codeName: "IC1", loc: { x: 5, y: 10 }, officerId: 1 },
   { id: 2, codeName: "IC2", loc: { x: 15, y: 20 }, officerId: 3 },
   { id: 3, codeName: "IC3", loc: { x: 25, y: 20 }, officerId: 2 },
+  { id: 5, codeName: "IC5", loc: { x: 20, y: 30 }, officerId: null },
 ];
 
 const sampleOfficers = [
@@ -156,11 +207,25 @@ const sampleOfficers = [
 ];
 
 async function loadData() {
+  try {
+    const req = await fetch("localhost:8080/api/v1/state");
+    const data = req.json();
+    return data;
+  } catch (e) {
+    console.log(e);
+    return {
+      data: {
+        incidents: sampleIncidents,
+        officers: sampleOfficers,
+      },
+      error: null,
+    };
+  }
+}
+
+async function loadIncidentOccurred() {
   return {
-    data: {
-      incidents: sampleIncidents,
-      officers: sampleOfficers,
-    },
+    data: sampleIncidentOccurred,
     error: null,
   };
 }
